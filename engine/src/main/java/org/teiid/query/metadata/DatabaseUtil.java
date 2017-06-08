@@ -101,13 +101,6 @@ public class DatabaseUtil {
 	            }
             }
             
-            if (m.getDescription() != null) {
-                schema.setAnnotation(m.getDescription());
-            }
-            
-            if(!m.isVisible()) {
-                schema.setVisible(false);
-            }
             db.addSchema(schema);
         }
         
@@ -162,7 +155,6 @@ public class DatabaseUtil {
     
     private static Permission convert(DataPermission dp) {
         Permission p = new Permission();
-        p.setResourceType(ResourceType.TABLE);
         
         p.setAllowAlter(dp.getAllowAlter());
         p.setAllowDelete(dp.getAllowDelete());
@@ -172,18 +164,25 @@ public class DatabaseUtil {
         p.setAllowUpdate(dp.getAllowUpdate());
         p.setResourceName(dp.getResourceName());
         
-        int dotCount = dp.getResourceName().length() - dp.getResourceName().replaceAll("\\.", "").length();
-        
-        // this is more of a guessing game here..
         if (dp.getAllowLanguage() != null && dp.getAllowLanguage()) {
             p.setAllowUsage(true);
             p.setResourceType(ResourceType.LANGUAGE);
-        } else if (dotCount == 0) {
-            p.setResourceType(ResourceType.SCHEMA);
-        } else if (dp.getAllowExecute() != null && dp.getAllowExecute()){
-            p.setResourceType(ResourceType.PROCEDURE);
-        } else if (dotCount >= 2 ) {
-            p.setResourceType(ResourceType.COLUMN);
+        } else if (dp.getResourceType() != null) {
+            p.setResourceType(ResourceType.valueOf(dp.getResourceType().name()));
+        } else {
+            int dotCount = dp.getResourceName().length() - dp.getResourceName().replaceAll("\\.", "").length(); //$NON-NLS-1$ //$NON-NLS-2$
+            
+            if (dotCount == 0) {
+                p.setResourceType(ResourceType.SCHEMA);
+            } else if (dp.getAllowExecute() != null && dp.getAllowExecute()){
+                // this may not be correct as it could be a function as well
+                p.setResourceType(ResourceType.PROCEDURE);
+            } else if (dotCount >= 2) {
+                // this may not be correct as it could be a table
+                p.setResourceType(ResourceType.COLUMN);
+            } else {
+                p.setResourceType(ResourceType.TABLE);
+            }
         }
         
         if (dp.getMask() != null) {
@@ -251,19 +250,32 @@ public class DatabaseUtil {
             vdb.addModel(mmd);
         }
         
+        copyDatabaseGrantsAndRoles(database, vdb);
+        
+        return vdb;
+    }
+
+    public static void copyDatabaseGrantsAndRoles(Database database,
+            VDBMetaData vdb) {
         // roles
         for (Grant grant:database.getGrants()) {
             Role role = database.getRole(grant.getRole());
             DataPolicyMetadata dpm = convert(grant, role);
             vdb.addDataPolicy(dpm);
         }
-        return vdb;
+        
+        for (Role role : database.getRoles()) {
+            if (vdb.getDataPolicyMap().get(role.getName()) == null) {
+                DataPolicyMetadata dpm = convert(null, role);
+                vdb.addDataPolicy(dpm);
+            }
+        }
     }
     
     static PermissionMetaData convert(Permission from) {
         PermissionMetaData pmd = new PermissionMetaData();
         pmd.setResourceName(from.getResourceName());
-        
+        pmd.setResourceType(DataPolicy.ResourceType.valueOf(from.getResourceType().name()));
         pmd.setAllowAlter(from.hasPrivilege(Privilege.ALTER));
         pmd.setAllowCreate(from.hasPrivilege(Privilege.INSERT));
         pmd.setAllowDelete(from.hasPrivilege(Privilege.DELETE));
@@ -282,19 +294,21 @@ public class DatabaseUtil {
     
     static DataPolicyMetadata convert(Grant from, Role role) {
         DataPolicyMetadata dpm = new DataPolicyMetadata();
-        dpm.setName(from.getRole());
+        dpm.setName(role.getName());
         
-        for (Permission p : from.getPermissions()) {
-            if (Boolean.TRUE.equals(p.hasPrivilege(Privilege.ALL_PRIVILEGES))) {
-                dpm.setGrantAll(true);
-                continue;
-            } else if (Boolean.TRUE.equals(p.hasPrivilege(Privilege.TEMPORARY_TABLE))) {
-                dpm.setAllowCreateTemporaryTables(true);
-                continue;
+        if (from != null) {
+            for (Permission p : from.getPermissions()) {
+                if (Boolean.TRUE.equals(p.hasPrivilege(Privilege.ALL_PRIVILEGES))) {
+                    dpm.setGrantAll(true);
+                    continue;
+                } else if (Boolean.TRUE.equals(p.hasPrivilege(Privilege.TEMPORARY_TABLE))) {
+                    dpm.setAllowCreateTemporaryTables(true);
+                    continue;
+                }
+                
+                PermissionMetaData pmd = convert(p);            
+                dpm.addPermission(pmd);
             }
-            
-            PermissionMetaData pmd = convert(p);            
-            dpm.addPermission(pmd);
         }
         
         dpm.setDescription(role.getAnnotation());

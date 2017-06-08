@@ -56,7 +56,7 @@ public class SolrQueryExecution implements ResultSetExecution {
 	private Iterator<RangeFacet.Count> facetRangeItr;
 	private ListIterator<PivotField> facetPivotItr;
 	private Stack<ListIterator> pivotItrs = new Stack<ListIterator>();
-	private Stack<String> pivotValues = new Stack<String>();
+	private Stack<Object> pivotValues = new Stack<Object>();
 	private Class<?>[] expectedTypes;
 	private SolrExecutionFactory executionFactory;
 	private int offset = 0;
@@ -114,6 +114,11 @@ public class SolrQueryExecution implements ResultSetExecution {
 		
 	}
 	
+	/**
+	 * Fill the pivotItrs object with the list of nested pivots iterators 
+	 * starting from the parent iterator and going deeper.
+	 * @param Current pivot iterator
+	 */
 	private void fillPivotItrs(ListIterator<PivotField> pivotItr) throws TranslatorException {
 
 		if (pivotItr != null && pivotItr.hasNext()) {
@@ -144,14 +149,24 @@ public class SolrQueryExecution implements ResultSetExecution {
 		}
 	}
 	
-	private void fillPivotValues(Object obj) throws TranslatorException {
-		if (obj.getClass().equals(DataTypeManager.DefaultDataClasses.TIMESTAMP) || obj.getClass().equals(Date.class)) {
-			this.pivotValues.add(adjustDateFormat(obj.toString()));
+	/**
+	 * Fill the pivotValues object with the parent values of the deepest pivot branch. 
+	 * @param Object
+	 */
+	private void fillPivotValues(Object value) throws TranslatorException {
+		if(value == null) {
+			this.pivotValues.add("");
+		} else if (value.getClass().equals(DataTypeManager.DefaultDataClasses.TIMESTAMP) || value.getClass().equals(Date.class)) {
+			this.pivotValues.add(adjustDateFormat(value.toString()));
 		} else {
-			this.pivotValues.add(obj.toString());
+			this.pivotValues.add(value);
 		}
 	}
 
+	/**
+	 * Fill the row with data retrieved from nested iterators
+	 * @param List<Object> row
+	 */
 	private List<Object> fillRow(List<Object> row) throws TranslatorException {
 
 		if (!pivotItrs.isEmpty() && !pivotItrs.peek().hasNext()) {
@@ -168,7 +183,11 @@ public class SolrQueryExecution implements ResultSetExecution {
 			try {
 				PivotField pivotField = (PivotField) value;
 				row.addAll(pivotValues);
-				row.add(pivotField.getValue());
+				if(pivotField.getValue() == null) {
+					row.add("");
+				} else {
+					row.add(pivotField.getValue());
+				}
 				row.add(pivotField.getCount());
 			} catch (Exception e) {
 				RangeFacet.Count facetRange = (RangeFacet.Count) value;
@@ -183,8 +202,10 @@ public class SolrQueryExecution implements ResultSetExecution {
 		}
 	}
 
-	/*
+	/**
 	 * Change the date format from solr's date format, including 'T' and 'Z', to a normal date format
+	 * @param String
+	 * @return String adjusted date
 	 */
 	private String adjustDateFormat(String value) throws TranslatorException {
 
@@ -211,11 +232,15 @@ public class SolrQueryExecution implements ResultSetExecution {
 		}
 
 	}
-
+	
+	/**
+	 * Reorder values in the row object to match the types in expectedTypes object
+	 * @param List<Object> row
+	 */
 	private void reorderRowValues(List<Object> row) {
 		int index = findTimestampIndex(this.expectedTypes);
 		if (index != -1) {
-			String timestamp = (String) row.get(0);
+			Object timestamp = row.get(0);
 			row.remove(0);
 			row.add(index, timestamp);
 		}

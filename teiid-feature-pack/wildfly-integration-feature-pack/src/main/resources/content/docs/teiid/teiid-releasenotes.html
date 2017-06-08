@@ -26,6 +26,9 @@
 <H2><A NAME="Highlights"></A>Highlights</H2>
 <ul>
     <li><a href="https://issues.jboss.org/browse/TEIID-3624">TEIID-3624</a> <b>CREATE DOMAIN</b> support for user defined simple types.
+    <li><a href="https://issues.jboss.org/browse/TEIID-4724">TEIID-4724</a> <b>DDL .vdb</b> deployment.
+    <li><a href="https://issues.jboss.org/browse/TEIID-4557">TEIID-4557</a> <a href="https://issues.jboss.org/browse/TEIID-2465">TEIID-2465</a> <b>Memory restrictions</b> at the operation and session level.
+    <li><a href="https://issues.jboss.org/browse/TEIID-4578">TEIID-4578</a> <b>SQLAlchemy</b> support through our pg/odbc access.
 </ul>
 
 <h2><a name="Compatibility">Compatibility Issues</a></h2>
@@ -44,6 +47,7 @@
 <ul>
   <li><a href="https://issues.jboss.org/browse/TEIID-3624">TEIID-3624</a> The introduction of domain types modified several of the system tables.  The isPhysical column was removed from the SYS.Datatypes table.
   SYS.Datatypes added Type, TypeCode, Literal_Prefix, and Literal_Suffix columns.  The SYS.Columns, SYS.ProcedureParams, and SYS.FunctionParams tables added TypeName, TypeCode, and ColumnSize columns.</li>
+  <li><a href="https://issues.jboss.org/browse/TEIID-4827">TEIID-4827</a> Java 1.8 is now required for building and running Teiid.</li>
 </ul>
 
 <h4>from 9.1</h4>
@@ -197,6 +201,11 @@ specified and isSourceRequired should return false (see setSourceRequired).  If 
 <h2><a name="Configuration">Configuration Issues</a></h2>
 
 See the <a href="teiid-docs/teiid_admin_guide.pdf">Admin Guide</a> for more on configuration and installation.
+
+<h4>from 9.2</h4>
+<ul>
+   <li><a href="https://issues.jboss.org/browse/TEIID-4820">TEIID-4820</a> The JDG specific connectivity is being separated from the main community project.  It will be made available separately and as part of the product.</li>
+</ul>
 
 <h4>from 9.1</h4>
 <ul>
